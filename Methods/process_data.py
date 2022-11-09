@@ -3,14 +3,24 @@ import os
 
 FILES_PATH = '../Data/CIC-IDS2017/'
 FILE_NAME_LIST = [
-    'Monday-WorkingHours.pcap_ISCX.csv',
-    'Tuesday-WorkingHours.pcap_ISCX.csv',
-    'Wednesday-workingHours.pcap_ISCX.csv',
-    'Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv',
-    'Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv',
-    'Friday-WorkingHours-Morning.pcap_ISCX.csv',
-    'Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv',
-    'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv'
+    [
+        'Monday-WorkingHours.pcap_ISCX.csv'
+    ],
+    [
+        'Tuesday-WorkingHours.pcap_ISCX.csv'
+    ],
+    [
+        'Wednesday-workingHours.pcap_ISCX.csv'
+    ],
+    [
+        'Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv',
+        'Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv'
+    ],
+    [
+        'Friday-WorkingHours-Morning.pcap_ISCX.csv',
+        'Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv',
+        'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv'
+    ]
 ]
 
 ALL_COLUMNS = [
@@ -101,7 +111,6 @@ ALL_COLUMNS = [
     ' Label',
 ]
 
-
 DROP_COLUMNS = [
     'Flow ID',
     ' Subflow Bwd Packets',
@@ -133,26 +142,43 @@ DROP_COLUMNS = [
     ' Label'
 ]
 
-
-def read_file(file_path):
-    return pd.read_csv(file_path)
-
-
-def filter_benign_data(file_df):
-    return file_df[file_df[' Label'] == 'BENIGN']
+TIME_FILTRATION_COL = [
+    ' Source IP',
+    ' Timestamp'
+]
 
 
-def filter_columns(file_df):
-    return file_df.drop(DROP_COLUMNS, axis=1)
+class ProcessData:
+    def read_file(file_path: str):
+        return pd.read_csv(file_path)
+
+    def filter_benign_data(file_df: pd.DataFrame):
+        return file_df[file_df[' Label'] == 'BENIGN']
+
+    def filter_columns(file_df: pd.DataFrame):
+        return file_df.drop(DROP_COLUMNS, axis=1)
+
+    def get_processed_df(file_path: str):
+        file_df = ProcessData.read_file(file_path)
+        file_df = ProcessData.filter_benign_data(file_df)
+        file_df = ProcessData.filter_columns(file_df)
+        return file_df
+
+    def get_time_data(file_df: pd.DataFrame):
+        for i in file_df.columns:
+            if i not in TIME_FILTRATION_COL:
+                file_df = file_df.drop(i, axis=1)
+        return file_df
+
+    def get_file_by_day(day: int):
+        file_df = ProcessData.get_processed_df(FILES_PATH + FILE_NAME_LIST[0][0])
+        for i in FILE_NAME_LIST[day][1:]:
+            file_df = pd.concat([file_df, ProcessData.get_processed_df(FILES_PATH + i)], axis=0)
+        return file_df
 
 
 if __name__ == '__main__':
-    file_df = read_file(os.path.join(FILES_PATH + FILE_NAME_LIST[0]))
+    file_df = ProcessData.read_file(os.path.join(FILES_PATH + FILE_NAME_LIST[4][0]))
     print(file_df.shape)
-    file_df = filter_benign_data(file_df)
+    file_df = ProcessData.get_file_by_day(4)
     print(file_df.shape)
-    file_df = filter_columns(file_df)
-    print(file_df.shape)
-
-
-
