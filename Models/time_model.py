@@ -32,6 +32,23 @@ TIME_FILTRATION_COL = [
     ' Timestamp'
 ]
 
+"""
+ip_map_by_day Data Structure
+
+ip_map_by_day(dict) {
+    day(int) : {
+        ip(str) : {
+            cluster_id(int) : [
+                timestamp1,
+                timestamp2,
+                ...
+            ](list-sortedASC)
+        }
+    }
+}
+"""
+
+DAY_SCORE_THRESHOLD = [0.2]*5
 
 class TimeModel:
     def generate_ip_time_map():
@@ -89,6 +106,75 @@ class TimeModel:
                 ip_map_by_day[day][ip] = TimeModel.get_euclidean_cluster(ip_map_by_day[day][ip], cluster_threshold)
         return ip_map_by_day
 
+    def is_time_in_cluster(time_cluster: dict, time: int):
+        for cluster_id in time_cluster.keys():
+            if time_cluster[cluster_id][0] <= time <= time_cluster[cluster_id][-1]:
+                return True
+        return False
+
+    def get_rounded_time(time: int):
+        if time<0:
+            return 1440+time
+        elif time>1440:
+            return time%1440
+        else:
+            return time
+
+    def get_nearest_times(lower_limit: int, upper_limit: int, time: int):
+        if (time-lower_limit) < (upper_limit-time):
+            nearest_time = lower_limit
+            second_nearest_time = upper_limit
+        else:
+            nearest_time = upper_limit
+            second_nearest_time = lower_limit
+        return nearest_time, second_nearest_time
+
+    def get_nearest_clusters_time(time_cluster: dict, time: int):
+        cluster_id = 0
+        lower_limit = (time_cluster[0][0] - 720)
+        upper_limit = time_cluster[0][0]
+        if lower_limit < time < upper_limit:
+            nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
+            return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
+
+        for cluster_id in list(time_cluster.keys())[1:]:
+            lower_limit = time_cluster[cluster_id - 1][-1]
+            upper_limit = time_cluster[cluster_id][0]
+            if lower_limit < time < upper_limit:
+                nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
+                return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
+
+        lower_limit = time_cluster[cluster_id][-1]
+        upper_limit = (lower_limit + 720)
+        if lower_limit < time < upper_limit:
+            nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
+            return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
+
+    def get_day_ip_score_by_time(ip_map: dict, ip: str, time: int):
+        if ip in ip_map.keys():
+            if TimeModel.is_time_in_cluster(ip_map[ip], time):
+                return 0
+            else:
+                nearest_cluster_time, second_nearest_cluster_time = \
+                    TimeModel.get_nearest_clusters_time(ip_map[ip], time)
+                nearest_distance = abs(time-nearest_cluster_time)
+                second_nearest_distance = abs(time-second_nearest_cluster_time)
+                ###
+                # Any score measuring policy can be added here!
+                ###
+                return (nearest_distance/second_nearest_distance)*10
+
+        else:
+            return 10
+
+    def get_overall_ip_score_by_time(ip_map_by_day: dict, ip: str, time: int):
+        temp_scores = []
+        for day in ip_map_by_day.keys():
+            temp_scores.append(TimeModel.get_day_ip_score_by_time(ip_map_by_day[day], ip, time))
+        # print(temp_scores)
+        temp_scores = [a * b for a, b in zip(DAY_SCORE_THRESHOLD, temp_scores)]
+        return sum(temp_scores)
+
 
 if __name__ == '__main__':
     # file_df = ProcessData.get_file_by_day(4)
@@ -104,4 +190,18 @@ if __name__ == '__main__':
     # TimeModel.save_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME, ip_map_by_day)
 
     ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
-    print(ip_map_by_day)
+    # print(ip_map_by_day)
+    score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, '37.59.195.0', 73)
+    print(score)
+
+    ### TEST DATA
+    # '37.59.195.0' - 645
+    # '213.19.162.80' - 297
+    # '64.71.142.124' - 298
+    # print(ip_map_by_day[0]['37.59.195.0'])
+    # print(ip_map_by_day[1]['37.59.195.0'])
+    # print(ip_map_by_day[2]['37.59.195.0'])
+    # print(ip_map_by_day[3]['37.59.195.0'])
+    # print(ip_map_by_day[4]['37.59.195.0'])
+
+
