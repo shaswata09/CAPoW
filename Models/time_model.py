@@ -63,6 +63,32 @@ class TimeModel:
             ip_time_map = pickle.load(f)
         return ip_time_map
 
+    def get_euclidean_cluster(time_stamps: set, threshold: int = 15):
+        temp_ts_lst = list(time_stamps)
+        temp_ts_lst.sort()
+        l = len(temp_ts_lst)
+        temp_ip_cluster = {0: [temp_ts_lst[0]]}
+
+        cluster_count = 0
+
+        cluster_upper_limit = temp_ts_lst[0]
+        for index in range(1, l):
+            if cluster_upper_limit + threshold >= temp_ts_lst[index]:
+                temp_ip_cluster[cluster_count].append(temp_ts_lst[index])
+                cluster_upper_limit = temp_ts_lst[index]
+            else:
+                cluster_count += 1
+                temp_ip_cluster[cluster_count] = [temp_ts_lst[index]]
+                cluster_upper_limit = temp_ts_lst[index]
+
+        return temp_ip_cluster
+
+    def generate_time_cluster(ip_map_by_day: dict, cluster_threshold: int):
+        for day in ip_map_by_day.keys():
+            for ip in ip_map_by_day[day].keys():
+                ip_map_by_day[day][ip] = TimeModel.get_euclidean_cluster(ip_map_by_day[day][ip], cluster_threshold)
+        return ip_map_by_day
+
 
 if __name__ == '__main__':
     # file_df = ProcessData.get_file_by_day(4)
@@ -73,5 +99,9 @@ if __name__ == '__main__':
     # ip_map_by_day = TimeModel.generate_ip_time_map()
     # TimeModel.save_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME, ip_map_by_day)
 
+    # ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
+    # ip_map_by_day = TimeModel.generate_time_cluster(ip_map_by_day, 15)
+    # TimeModel.save_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME, ip_map_by_day)
+
     ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
-    print(ip_map_by_day[0])
+    print(ip_map_by_day)
