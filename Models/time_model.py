@@ -150,6 +150,12 @@ class TimeModel:
             nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
             return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
 
+    def generate_score(nearest_dist: int, second_nearest_dist: int, time: int):
+        distance_factor = nearest_dist / second_nearest_dist
+        global_distance_factor = abs(nearest_dist+second_nearest_dist)/720
+        score = distance_factor * global_distance_factor * 10
+        return score
+
     def get_day_ip_score_by_time(ip_map: dict, ip: str, time: int):
         if ip in ip_map.keys():
             if TimeModel.is_time_in_cluster(ip_map[ip], time):
@@ -162,7 +168,7 @@ class TimeModel:
                 ###
                 # Any score measuring policy can be added here!
                 ###
-                return (nearest_distance/second_nearest_distance)*10
+                return TimeModel.generate_score(nearest_distance,second_nearest_distance,time)
 
         else:
             return 10
@@ -191,7 +197,7 @@ if __name__ == '__main__':
 
     ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
     # print(ip_map_by_day)
-    score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, '37.59.195.0', 73)
+    score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, '37.59.195.0', 645)
     print(score)
 
     ### TEST DATA
