@@ -1,6 +1,8 @@
 import pandas as pd
-from Methods.process_data import ProcessData
 import pickle
+
+from Methods.process_data import ProcessData
+from Methods.process_data import DATA_TYPE
 
 FILES_PATH = '../Data/CIC-IDS2017/'
 FILE_NAME_LIST = [
@@ -131,10 +133,10 @@ class TimeModel:
 
     def get_nearest_clusters_time(time_cluster: dict, time: int):
         cluster_id = 0
-        lower_limit = (time_cluster[0][0] - 720)
+        lower_limit = 0  # (time_cluster[0][0] - 720)
         upper_limit = time_cluster[0][0]
         if lower_limit < time < upper_limit:
-            nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
+            nearest_time, second_nearest_time = upper_limit, lower_limit  # TimeModel.get_nearest_times(lower_limit, upper_limit, time)
             return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
 
         for cluster_id in list(time_cluster.keys())[1:]:
@@ -145,14 +147,21 @@ class TimeModel:
                 return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
 
         lower_limit = time_cluster[cluster_id][-1]
-        upper_limit = (lower_limit + 720)
+        upper_limit = 1440  # (lower_limit + 720)
         if lower_limit < time < upper_limit:
-            nearest_time, second_nearest_time = TimeModel.get_nearest_times(lower_limit, upper_limit, time)
+            nearest_time, second_nearest_time = lower_limit, upper_limit  # TimeModel.get_nearest_times(lower_limit, upper_limit, time)
             return TimeModel.get_rounded_time(nearest_time), TimeModel.get_rounded_time(second_nearest_time)
 
-    def generate_score(nearest_dist: int, second_nearest_dist: int, time: int):
-        distance_factor = nearest_dist / second_nearest_dist
-        global_distance_factor = abs(nearest_dist+second_nearest_dist)/720
+    def generate_score(nearest_dist: int, second_nearest_dist: int):
+        if second_nearest_dist > nearest_dist:
+            distance_factor = nearest_dist / second_nearest_dist
+        else:
+            distance_factor = nearest_dist / 720
+        sum = (nearest_dist+second_nearest_dist)
+        if sum <= 720:
+            global_distance_factor = (nearest_dist+second_nearest_dist)/720
+        else:
+            global_distance_factor = 1
         score = distance_factor * global_distance_factor * 10
         return score
 
@@ -161,14 +170,19 @@ class TimeModel:
             if TimeModel.is_time_in_cluster(ip_map[ip], time):
                 return 0
             else:
-                nearest_cluster_time, second_nearest_cluster_time = \
-                    TimeModel.get_nearest_clusters_time(ip_map[ip], time)
+                nearest_cluster_time, second_nearest_cluster_time = TimeModel.get_nearest_clusters_time(ip_map[ip], time)
+                # print(nearest_cluster_time, " - ", second_nearest_cluster_time)
                 nearest_distance = abs(time-nearest_cluster_time)
+                nearest_distance = nearest_distance if abs(time-nearest_cluster_time) < 720 else (
+                        1440-nearest_distance)
                 second_nearest_distance = abs(time-second_nearest_cluster_time)
+                second_nearest_distance = second_nearest_distance if abs(time - second_nearest_cluster_time) < 720 else (
+                        1440 - second_nearest_distance)
+                # print(nearest_distance, " - ", second_nearest_distance, "\n")
                 ###
                 # Any score measuring policy can be added here!
                 ###
-                return TimeModel.generate_score(nearest_distance,second_nearest_distance,time)
+                return TimeModel.generate_score(nearest_distance,second_nearest_distance)
 
         else:
             return 10
@@ -179,7 +193,22 @@ class TimeModel:
             temp_scores.append(TimeModel.get_day_ip_score_by_time(ip_map_by_day[day], ip, time))
         # print(temp_scores)
         temp_scores = [a * b for a, b in zip(DAY_SCORE_THRESHOLD, temp_scores)]
+        # print(temp_scores)
         return sum(temp_scores)
+    def test_avg_malicious_data_score():
+        ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
+        score = 0
+        count = 0
+        for i in range(5):
+            file_df = ProcessData.get_file_by_day(i, DATA_TYPE.MALICIOUS)
+            file_df = ProcessData.get_time_data(file_df)
+
+            for ip, time in zip(file_df[TIME_FILTRATION_COL[0]], file_df[TIME_FILTRATION_COL[1]]):
+                score += TimeModel.get_overall_ip_score_by_time(ip_map_by_day, ip, time)
+                # print(ip, " - ", time, " - ", score)
+            count += file_df.shape[0]
+
+        print("Overall score: ", score/count)
 
 
 if __name__ == '__main__':
@@ -195,19 +224,25 @@ if __name__ == '__main__':
     # ip_map_by_day = TimeModel.generate_time_cluster(ip_map_by_day, 15)
     # TimeModel.save_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME, ip_map_by_day)
 
-    ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
-    # print(ip_map_by_day)
-    score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, '37.59.195.0', 645)
-    print(score)
+    TimeModel.test_avg_malicious_data_score()
+
 
     ### TEST DATA
     # '37.59.195.0' - 645
     # '213.19.162.80' - 297
     # '64.71.142.124' - 298
-    # print(ip_map_by_day[0]['37.59.195.0'])
-    # print(ip_map_by_day[1]['37.59.195.0'])
-    # print(ip_map_by_day[2]['37.59.195.0'])
-    # print(ip_map_by_day[3]['37.59.195.0'])
-    # print(ip_map_by_day[4]['37.59.195.0'])
+
+    # test_ip = '172.16.0.1'
+    # test_time = 1290
+    #
+    # ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
+    # # print(ip_map_by_day)
+    # score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, test_ip, test_time)
+    # print(score)
+    # for i in range(5):
+    #     try:
+    #         print(f"Day: {i+1} :: ", ip_map_by_day[i][test_ip])
+    #     except:
+    #         pass
 
 

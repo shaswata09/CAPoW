@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 
+from enum import Enum
+
 FILES_PATH = '../Data/CIC-IDS2017/'
 FILE_NAME_LIST = [
     [
@@ -147,6 +149,10 @@ TIME_FILTRATION_COL = [
     ' Timestamp'
 ]
 
+# DATA_TYPE = Enum('DATA_TYPE', ['BENIGN', 'MALICIOUS'])
+class DATA_TYPE(Enum):
+    BENIGN = 'BENIGN'
+    MALICIOUS = 'MALICIOUS'
 
 class ProcessData:
     def read_file(file_path: str):
@@ -155,12 +161,18 @@ class ProcessData:
     def filter_benign_data(file_df: pd.DataFrame):
         return file_df[file_df[' Label'] == 'BENIGN']
 
+    def filter_malicious_data(file_df: pd.DataFrame):
+        return file_df[file_df[' Label'] != 'BENIGN']
+
     def filter_columns(file_df: pd.DataFrame):
         return file_df.drop(DROP_COLUMNS, axis=1)
 
-    def get_processed_df(file_path: str):
+    def get_processed_df(file_path: str, type: str = DATA_TYPE.BENIGN):
         file_df = ProcessData.read_file(file_path)
-        file_df = ProcessData.filter_benign_data(file_df)
+        if type == DATA_TYPE.BENIGN:
+            file_df = ProcessData.filter_benign_data(file_df)
+        else:
+            file_df = ProcessData.filter_malicious_data(file_df)
         file_df = ProcessData.filter_columns(file_df)
         return file_df
 
@@ -170,15 +182,19 @@ class ProcessData:
                 file_df = file_df.drop(i, axis=1)
         return file_df
 
-    def get_file_by_day(day: int):
-        file_df = ProcessData.get_processed_df(FILES_PATH + FILE_NAME_LIST[0][0])
+    def get_file_by_day(day: int, type: str = DATA_TYPE.BENIGN):
+        file_df = ProcessData.get_processed_df(FILES_PATH + FILE_NAME_LIST[day][0], type)
         for i in FILE_NAME_LIST[day][1:]:
-            file_df = pd.concat([file_df, ProcessData.get_processed_df(FILES_PATH + i)], axis=0)
+            file_df = pd.concat([file_df, ProcessData.get_processed_df(FILES_PATH + i, type)], axis=0)
         return file_df
 
 
 if __name__ == '__main__':
-    file_df = ProcessData.read_file(os.path.join(FILES_PATH + FILE_NAME_LIST[4][0]))
+    file_df = ProcessData.read_file(os.path.join(FILES_PATH + FILE_NAME_LIST[2][0]))
     print(file_df.shape)
-    file_df = ProcessData.get_file_by_day(4)
+    file_df = ProcessData.get_file_by_day(2)
     print(file_df.shape)
+
+    # # To test an ip in the dataframe
+    # temp = file_df.loc[file_df[' Source IP'] == '64.71.142.124']
+    # print(temp)
