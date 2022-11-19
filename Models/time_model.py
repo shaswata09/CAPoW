@@ -154,7 +154,7 @@ class TimeModel:
 
     def generate_score(nearest_dist: int, second_nearest_dist: int):
         if second_nearest_dist > nearest_dist:
-            distance_factor = nearest_dist / second_nearest_dist
+            distance_factor = nearest_dist / ((nearest_dist + second_nearest_dist)/2)
         else:
             distance_factor = nearest_dist / 720
         sum = (nearest_dist+second_nearest_dist)
@@ -204,7 +204,9 @@ class TimeModel:
             file_df = ProcessData.get_time_data(file_df)
 
             for ip, time in zip(file_df[TIME_FILTRATION_COL[0]], file_df[TIME_FILTRATION_COL[1]]):
-                score += TimeModel.get_overall_ip_score_by_time(ip_map_by_day, ip, time)
+                temp_ip_score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, ip, time)
+                score += temp_ip_score
+
                 # print(ip, " - ", time, " - ", score)
             count += file_df.shape[0]
 
@@ -224,7 +226,7 @@ if __name__ == '__main__':
     # ip_map_by_day = TimeModel.generate_time_cluster(ip_map_by_day, 15)
     # TimeModel.save_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME, ip_map_by_day)
 
-    TimeModel.test_avg_malicious_data_score()
+    # TimeModel.test_avg_malicious_data_score()
 
 
     ### TEST DATA
@@ -232,17 +234,17 @@ if __name__ == '__main__':
     # '213.19.162.80' - 297
     # '64.71.142.124' - 298
 
-    # test_ip = '172.16.0.1'
-    # test_time = 1290
-    #
-    # ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
-    # # print(ip_map_by_day)
-    # score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, test_ip, test_time)
-    # print(score)
-    # for i in range(5):
-    #     try:
-    #         print(f"Day: {i+1} :: ", ip_map_by_day[i][test_ip])
-    #     except:
-    #         pass
+    test_ip = '172.16.0.1'
+    test_time = 1290
+
+    ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
+    # print(ip_map_by_day)
+    score = TimeModel.get_overall_ip_score_by_time(ip_map_by_day, test_ip, test_time)
+    print(f"Overall Reputation: {score}")
+    for i in range(5):
+        try:
+            print(f"Day: {i+1} :: ", ip_map_by_day[i][test_ip])
+        except:
+            pass
 
 
