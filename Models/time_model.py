@@ -52,6 +52,7 @@ ip_map_by_day(dict) {
 
 DAY_SCORE_THRESHOLD = [0.2]*5
 
+
 class TimeModel:
     def generate_ip_time_map():
         ip_map_by_day = {
@@ -195,6 +196,7 @@ class TimeModel:
         temp_scores = [a * b for a, b in zip(DAY_SCORE_THRESHOLD, temp_scores)]
         # print(temp_scores)
         return sum(temp_scores)
+
     def test_avg_malicious_data_score():
         ip_map_by_day = TimeModel.read_ip_time_map(PROCESSED_FILES_PATH + IP_TIME_MAP_FILE_NAME)
         score = 0
